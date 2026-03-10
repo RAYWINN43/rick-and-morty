@@ -1,6 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
-import {ActivityIndicator,FlatList,SafeAreaView,StyleSheet,Text,TextInput,View} from 'react-native';
-import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import apiClient from '../service/api.service';
 import { ApiResponse, Character } from '../types/api.types';
 import { useNavigation } from '@react-navigation/native';
@@ -14,15 +22,18 @@ export default function RickListScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'RickList'>>();
 
   const filteredCharacters = characters.filter((character) =>
-    character.name.toLowerCase().includes(searchQuery.toLowerCase())
+    character.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
   );
 
   const fetchCharacters = async (pageNumber: number) => {
@@ -57,6 +68,22 @@ export default function RickListScreen() {
       fetchCharacters(page);
     }
   }, [page]);
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   const handleLoadMore = () => {
     if (!isLoading && !isFetchingMore && hasMore) {
